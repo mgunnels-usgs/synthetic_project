@@ -16,17 +16,36 @@ mpl.rc('font', serif='Times')
 mpl.rc('text', usetex=False)
 mpl.rc('font', size=18)
 
-
-CONVERSION_M = (10**9)
+def setup_data(net, sta, stime, etime, client):
+    try:
+        inv = client.get_stations(network=net, station = sta, starttime=stime,
+                              endtime = etime, channel = "LH*", level="response")
+    except:
+        print('Metadata problem for: ' + sta)
+        return [], False
+    try:
+        st_data = client.get_waveforms(network=net, station=sta, starttime=stime,
+                                   endtime = etime, channel = "LH*", location="*")
+    except:
+        print('Data problem for: ' + sta)
+        return [], False
+    st_data.detrend('constant')
+    st_data.detrend('linear')
+    st_data.remove_response(inv, output='DISP')
+    st_data.rotate("->ZNE", inventory=inv)
+    coors = inv.get_coordinates(st_data[0].id)
+    return st_data, coors
 
 def main():
     # Lets get the parser arguments
     parser_val = getargs()
     client = Client(parser_val.client)
     debug = parser_val.debug
-    
     net = parser_val.network
-
+    
+    # Made this a bit smaller
+    if not os.path.exists(parser_val.res_dir):
+        os.mkdir(parser_val.res_dir)
 
     userminfre = 1.0/float(parser_val.filter[1])
     usermaxfre = 1.0/float(parser_val.filter[0])
@@ -42,14 +61,12 @@ def main():
         files = glob.glob(parser_val.syn + '/' + net + '*MXZ*')
 
  
-
-    #cmt = parser_val.cmt
     syn = parser_val.syn
-
-    cwd = os.getcwd()
-    #make_res_dir(res_dir)
     
-    cat = obspy.read_events(parser_val.syn + '/CMTSOLUTION')
+    eve = obspy.read_events(parser_val.syn + '/CMTSOLUTION')[0]
+
+    stf = eve.focal_mechanisms[0].moment_tensor.source_time_function
+    win = signal.hann(int(2*stf['duration']))
 
     for cur_file in files:
         cur_file = cur_file.replace('MXZ', 'MX*')
@@ -57,37 +74,15 @@ def main():
             st = read(cur_file)
         except:
             continue
-        st.integrate()
-        st.integrate()
-
-        for tr in st:
-            tr.data /= CONVERSION_M
-
         for tr in st:
             tr.data = resample(tr.data, int(tr.stats.endtime - tr.stats.starttime))
             tr.stats.sampling_rate = 1.
-        st = stf(st, 8.)
-        inv = client.get_stations(network=st[-1].stats.network,
-                                  station=st[-1].stats.station,
-                                  starttime=st[-1].stats.starttime,
-                                  endtime=st[-1].stats.endtime,
-                                  channel="LH*",
-                                  level="response")
-        try:
-            st_data = client.get_waveforms(network=st[-1].stats.network,
-                                           station=st[-1].stats.station,
-                                           starttime=st[-1].stats.starttime,
-                                           endtime=st[-1].stats.endtime,
-                                           channel="LH*",
-                                           location="*")
-        except:
-            continue
+            tr.data = signal.convolve(tr.data,win, mode='same')/sum(win)
+    
+        print(st)
+        st_data, coors = setup_data(net, st[-1].stats.station, st[-1].stats.starttime,
+                                    st[-1].stats.endtime, client)
 
-    # rotate and remove response
-        st_data.detrend('constant')
-        st_data.detrend('linear')
-        st_data.remove_response(inv, output="DISP")
-        st_data.rotate("->ZNE", inventory=inv)
         st += st_data
         st.filter('bandpass', freqmin=usermaxfre, freqmax=userminfre)
         st.taper(0.05)
@@ -101,29 +96,13 @@ def main():
                 plt.xlim((min(tr.times()), max(tr.times())))
             if idx == 1:
                 filename = get_file_name(parser_val.res_dir, st_data)
-                plt.ylabel('Amplitude (mm)')
+                # These units are wrong
+                plt.ylabel('Amplitude (m)')
             plt.legend(loc=1)
         plt.xlabel('Time (s)')
         plt.savefig(filename + '.PNG', format='PNG', dpi=200)
         plt.clf()
         plt.close()
-
-
-
-def stf(st, hd):
-    " Windows data"
-    win = signal.hann(int(2*hd))
-    for tr in st:
-        tr.data = signal.convolve(tr.data, win, mode='same')/sum(win)
-    return st
-
-def make_res_dir(res_dir):
-    " This function checks if result directory exists, if it does not, makes a results directory "
-    if os.path.exists(res_dir):
-        print('Path Exists')
-    else:
-        os.mkdir(res_dir)
-
 
 def getargs():
     " Gets user arguments"
