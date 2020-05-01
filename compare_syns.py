@@ -36,10 +36,6 @@ def setup_data(net, sta, stime, etime, client):
     coors = inv.get_coordinates(st_data[0].id)
     return st_data, coors
 
-
-
-
-
 def main():
     # Lets get the parser arguments
     parser_val = getargs()
@@ -65,12 +61,7 @@ def main():
         files = glob.glob(parser_val.syn + '/' + net + '*MXZ*')
 
  
-
-    #cmt = parser_val.cmt
     syn = parser_val.syn
-
-    cwd = os.getcwd()
-    #make_res_dir(res_dir)
     
     eve = obspy.read_events(parser_val.syn + '/CMTSOLUTION')[0]
 
@@ -83,12 +74,6 @@ def main():
             st = read(cur_file)
         except:
             continue
-        st.integrate()
-        st.integrate()
-
-        for tr in st:
-            tr.data /= 10**9
-
         for tr in st:
             tr.data = resample(tr.data, int(tr.stats.endtime - tr.stats.starttime))
             tr.stats.sampling_rate = 1.
@@ -97,11 +82,6 @@ def main():
         print(st)
         st_data, coors = setup_data(net, st[-1].stats.station, st[-1].stats.starttime,
                                     st[-1].stats.endtime, client)
-
-        if len(st_data) == 0:
-            continue
-
-
 
         st += st_data
         st.filter('bandpass', freqmin=usermaxfre, freqmax=userminfre)
@@ -116,16 +96,13 @@ def main():
                 plt.xlim((min(tr.times()), max(tr.times())))
             if idx == 1:
                 filename = get_file_name(parser_val.res_dir, st_data)
-                plt.ylabel('Amplitude (mm)')
+                # These units are wrong
+                plt.ylabel('Amplitude (m)')
             plt.legend(loc=1)
         plt.xlabel('Time (s)')
         plt.savefig(filename + '.PNG', format='PNG', dpi=200)
         plt.clf()
         plt.close()
-
-
-
-
 
 def getargs():
     " Gets user arguments"
