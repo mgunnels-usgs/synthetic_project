@@ -42,7 +42,7 @@ def main():
     client = Client(parser_val.client)
     debug = parser_val.debug
     net = parser_val.network
-    
+
     # Made this a bit smaller
     if not os.path.exists(parser_val.res_dir):
         os.mkdir(parser_val.res_dir)
@@ -50,7 +50,7 @@ def main():
     userminfre = 1.0/float(parser_val.filter[1])
     usermaxfre = 1.0/float(parser_val.filter[0])
     filtercornerpoles = int(parser_val.filter[2])
-    
+
     if parser_val.sta:
         sta_list = parser_val.sta.replace(' ','')
         sta_list = sta_list.split(',')
@@ -60,9 +60,9 @@ def main():
     else:
         files = glob.glob(parser_val.syn + '/' + net + '*MXZ*')
 
- 
+
     syn = parser_val.syn
-    
+
     eve = obspy.read_events(parser_val.syn + '/CMTSOLUTION')[0]
 
     stf = eve.focal_mechanisms[0].moment_tensor.source_time_function
@@ -78,7 +78,7 @@ def main():
             tr.data = resample(tr.data, int(tr.stats.endtime - tr.stats.starttime))
             tr.stats.sampling_rate = 1.
             tr.data = signal.convolve(tr.data,win, mode='same')/sum(win)
-    
+
         print(st)
         st_data, coors = setup_data(net, st[-1].stats.station, st[-1].stats.starttime,
                                     st[-1].stats.endtime, client)
