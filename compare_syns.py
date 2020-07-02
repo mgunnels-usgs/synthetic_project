@@ -49,9 +49,17 @@ def main():
     debug = parser_val.debug
     net = parser_val.network
     res_dir=parser_val.res_dir
+
+    # Load in CMT Solution
+    cat = obspy.read_events(parser_val.syn + '/CMTSOLUTION')
+
     # Made this a bit smaller
     if not os.path.exists(parser_val.res_dir):
         os.mkdir(parser_val.res_dir)
+            # Open a file to write the correlation statistics
+    evename=(str(cat.resource_id).split('/')[-2])
+    statfile = open(os.getcwd() + '/' + res_dir + '/Results' + evename + net + '.csv' ,'w')
+    statfile.write('net, sta, loc, chan, scalefac, lag, corr, time\n')
 
     # Get filter corners
     userminfre = 1.0/float(parser_val.filter[0])
@@ -69,8 +77,7 @@ def main():
 
     # Synthetic Data
     syn = parser_val.syn
-    # Load in CMT Solution
-    cat = obspy.read_events(parser_val.syn + '/CMTSOLUTION')
+
 
     # Get event information
     cmtlat = cat[0].origins[0].latitude
@@ -102,15 +109,16 @@ def main():
             st += st_data
         except:
             print('No Data for: ' + st[-1].stats.station)
+
             continue
         st.filter('bandpass', freqmin=usermaxfre, freqmax=userminfre)
         st.taper(0.05)
 
 
         # Open a file to write the correlation statistics
-        evename=(str(cat.resource_id).split('/')[-2])
-        statfile = open(os.getcwd() + '/' + res_dir + '/Results' + evename + net + '.csv' ,'w')
-        statfile.write('net, sta, loc, chan, scalefac, lag, corr, time\n')
+        # evename=(str(cat.resource_id).split('/')[-2])
+        # statfile = open(os.getcwd() + '/' + res_dir + '/Results' + evename + net + '.csv' ,'w')
+        # statfile.write('net, sta, loc, chan, scalefac, lag, corr, time\n')
 
 
         # Plot data, calculate correlation statistics, and save plot to directory
@@ -137,11 +145,11 @@ def main():
                          str("{0:.0f}".format(1/usermaxfre)) + ' s per.'
                 plt.title(title, fontsize=24)
 
-            #Get Correlation Statistics
-            try:
-                writestats(statfile, st, chan)
-            except:
-                print('Problem with: ' + sta)
+            # #Get Correlation Statistics
+            # try:
+            #     writestats(statfile, st, chan)
+            # except:
+            #     print('Problem with: ' + sta)
 
             plt.subplot(3, 1, idx + 1)
             st_t = st.select(channel="*" + chan)
@@ -153,10 +161,20 @@ def main():
                 filename = get_file_name(parser_val.res_dir, st_data)
                 plt.ylabel('Displacement (mm)')
             plt.legend(prop={'size': 8}, loc=2)
+
+                #Get Correlation Statistics
+            try:
+                writestats(statfile, st, chan)
+            except:
+                print('Problem with: ' + sta)
+
+
+
         plt.xlabel('Time (s)')
         plt.savefig(filename + '.PNG', format='PNG', dpi=200)
         plt.clf()
         plt.close()
+#    statfile.close()
 
 
 def getargs():
@@ -235,8 +253,8 @@ def writestats(statfile, st, chan):
                                 "/" + str(tr.stats.starttime.year) + " " + str(tr.stats.starttime.hour) + ":" + \
                                 str(tr.stats.starttime.minute) + ":" + str(tr.stats.starttime.second) + "\n")
     except:
-        if debug:
-            print('No residual for' + tr.stats.station + ' ' + 'LH' + comp)
+    #    if debug:
+            print('No residual for ' + tr.stats.station + ' ' + 'LH' + chan)
     return
 
 
