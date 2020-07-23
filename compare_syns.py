@@ -14,7 +14,6 @@ from obspy.signal.cross_correlation import correlate, xcorr_max, xcorr
 from obspy.geodetics.base import gps2dist_azimuth
 
 
-
 # Making the figures look nice
 mpl.rc('font', family='serif')
 mpl.rc('font', serif='Times')
@@ -122,10 +121,12 @@ def main():
 
 
         # Plot data, calculate correlation statistics, and save plot to directory
-        fig = plt.figure(1, figsize=(12, 12))
+        
+        fig, (ax1, ax2, ax3) = plt.subplots(3,1, figsize=(12, 12))
+        ax = [ax1, ax2, ax3]
         for idx, chan in enumerate(['Z', 'N', 'E']):
             if chan == 'Z':
-                plt.subplot(3,1,1)
+                
                 title = st[0].stats.network + ' ' + \
                         st[0].stats.station + ' '
                 starttime = st[0].stats.starttime
@@ -143,24 +144,19 @@ def main():
                 title += ' BAzi:' + str(bazi) + ' '
                 title += str("{0:.0f}".format(1/userminfre)) + '-' + \
                          str("{0:.0f}".format(1/usermaxfre)) + ' s per.'
-                plt.title(title, fontsize=24)
+                ax1.set_title(title, fontsize=24)
 
-            # #Get Correlation Statistics
-            # try:
-            #     writestats(statfile, st, chan)
-            # except:
-            #     print('Problem with: ' + sta)
 
-            plt.subplot(3, 1, idx + 1)
+            
             st_t = st.select(channel="*" + chan)
             for tr in st_t:
-                plt.plot(tr.times(), tr.data * 1000., label=tr.id)
-                plt.xlim((min(tr.times()), max(tr.times())))
+                ax[idx].plot(tr.times(), tr.data * 1000., label=tr.id)
+                ax[idx].set_xlim((min(tr.times()), max(tr.times())))
             # Only label subplot 2 y-axis
             if idx == 1:
                 filename = get_file_name(parser_val.res_dir, st_data)
-                plt.ylabel('Displacement (mm)')
-            plt.legend(prop={'size': 8}, loc=2)
+                ax2.set_ylabel('Displacement (mm)')
+            ax[idx].legend(prop={'size': 8}, loc=2)
 
                 #Get Correlation Statistics
             try:
@@ -170,7 +166,7 @@ def main():
 
 
 
-        plt.xlabel('Time (s)')
+        ax[2].set_xlabel('Time (s)')
         plt.savefig(filename + '.PNG', format='PNG', dpi=200)
         plt.clf()
         plt.close()
@@ -236,7 +232,6 @@ def writestats(statfile, st, chan):
     when compared to the observed data and write to a file.
     """
     try:
-
         syncomp = "MX" + chan
         datacomp = "LH" + chan
         syn = st.select(channel = syncomp)
@@ -253,8 +248,8 @@ def writestats(statfile, st, chan):
                                 "/" + str(tr.stats.starttime.year) + " " + str(tr.stats.starttime.hour) + ":" + \
                                 str(tr.stats.starttime.minute) + ":" + str(tr.stats.starttime.second) + "\n")
     except:
-    #    if debug:
-            print('No residual for ' + tr.stats.station + ' ' + 'LH' + chan)
+
+        print('No residual for ' + st[0].stats.station + ' ' + 'LH' + chan)
     return
 
 
